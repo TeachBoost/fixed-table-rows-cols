@@ -10,9 +10,11 @@
 
     $.fn.fixedTableRowsCols = function ( options ) {
         var config = {
-            height: '100%',
-            width: '100%',
+            height: 500,
+            width: 2000,
             fixedCols: 1,
+            fixedTHead: true,
+            addScrollers: false,
             tableTmpl: function ( className ) {
                 return '<table class="' + className + '" />';
             }
@@ -29,11 +31,14 @@
             var $fixedRows;
             var $fixedCols;
             var $fixedRowCols;
+            var $scrollLeft;
+            var $scrollRight;
             var thHeight = $this.find( 'tr:first-child th:first-child' ).outerHeight();
             var tdHeight = $this.find( 'tr:first-child td:first-child' ).outerHeight();
             var tableWidth = $this.outerWidth();
             var tableHeight = 0;
             var fixedColWidth = 0;
+            var scrollStep = 0;
 
             // Set the width and height of each td & th based on the default
             // rendering of the table. Agnostic to how table and cell widths
@@ -84,18 +89,20 @@
 
             // Add wrapper to base table which will have the scrollbars
             $this.wrap( '<div class="ft-scroller" />' );
-            $fixedTableWrapper = $this.parent().css( 'width', config.width - 5 );
+            $fixedTableWrapper = $this.parent().css( 'width', $fixedTableContainer.width() );
 
             // Create a new table for each fixed portions
 
-            // Fixed Rows (assumes entire <thead> is fixed)
-            $fixedRows = $( config.tableTmpl( 'ft-r' ) )
-                .append( $this.find( 'thead' ).clone() );
+            if ( config.fixedTHead ) {
+                // Fixed Rows
+                $fixedRows = $( config.tableTmpl( 'ft-r' ) )
+                    .append( $this.find( 'thead' ).clone() );
 
-            $fixedTableRelContainer.prepend( $fixedRows );
+                $fixedTableRelContainer.prepend( $fixedRows );
 
-            $fixedRows.wrap( $( '<div class="ft-rwrapper" />' ) );
-            $fixedRows.width( tableWidth );
+                $fixedRows.wrap( $( '<div class="ft-rwrapper" />' ) );
+                $fixedRows.width( tableWidth );
+            }
 
             if ( config.fixedCols > 0 ) {
                 // Upper Left corner, cells that lie in both the fixed row and cols
@@ -134,6 +141,17 @@
                         height: $fixedTableContainer.height()
                     })
                     .width( $fixedRowCols.outerWidth( true ) + 1 );
+
+                if ( config.addScrollers ) {
+                    // Add scroll indicators
+                    $scrollLeft = $( '<div class="ft-scroll-left" />' );
+                    $scrollLeft.append( '<i class="fa fa-chevron-left" />' );
+                    $scrollRight = $( '<div class="ft-scroll-right" />' );
+                    $scrollRight.append( '<i class="fa fa-chevron-right" />' );
+                    $scrollLeft.css( { left: $fixedRowCols.outerWidth( true ) } );
+                    $fixedTableRelContainer.append( $scrollLeft );
+                    $fixedTableRelContainer.append( $scrollRight );
+                }
             }
 
             $fixedRows
@@ -142,16 +160,60 @@
                     width: $fixedTableWrapper.width()
                 });
 
-            // Events ( scroll and resize ). animate() is faster than css()
+            // Events
+            // Scrolling
             $fixedTableWrapper.scroll( function () {
                 if ( config.fixedCols > 0 ) {
+                    // animate() is faster than css()
                     // $fixedCols.css( 'top', ( $( this ).scrollTop() * -1 ) );
-
-                    $fixedCols.animate({ top:  $( this ).scrollTop() * -1 }, 0 );
+                    $fixedCols.animate({ top: $( this ).scrollTop() * -1 }, 0 );
                 }
 
                 $fixedRows.animate({ left: $( this ).scrollLeft() * -1 }, 0 );
             });
+
+            if ( config.addScrollers && config.fixedCols > 0 ) {
+                scrollStep = $fixedTableWrapper.width() - fixedColWidth * 0.5;
+                // $fixedTableRowsCols.add( $scrollLeft ).add( $scrollRight ).on( 'mouseover', function () {
+                $this.add( $scrollLeft ).add( $scrollRight ).on( 'mouseover', function () {
+                    showScrollers();
+                });
+
+                $fixedCols.add( $fixedRows ).on( 'mouseover', function () {
+                    $scrollLeft.fadeOut( 'fast' );
+                    $scrollRight.fadeOut( 'fast' );
+                });
+
+                $scrollLeft.on( 'click', function () {
+                    $fixedTableWrapper.animate({
+                        scrollLeft: Math.max( 0, $fixedTableWrapper.scrollLeft() - scrollStep )
+                    }, 500, showScrollers() );
+                });
+
+                $scrollRight.on( 'click', function () {
+                    $fixedTableWrapper.animate({
+                        scrollLeft: Math.min( $this.width() - $fixedTableWrapper.width(), $fixedTableWrapper.scrollLeft() + scrollStep )
+                    }, 500, showScrollers() );
+                });
+            }
+
+            function showScrollers() {
+                // If not scrolled all the way left, show the left scroller
+                if ( $fixedTableWrapper.scrollLeft() > 0 ) {
+                    $scrollLeft.show();
+                }
+                else {
+                    $scrollLeft.hide();
+                }
+
+                // If not scrolled all the way right, show the right scroller
+                if ( $fixedTableWrapper.scrollLeft() + $fixedTableWrapper.width() < $this.width() ) {
+                    $scrollRight.show();
+                }
+                else {
+                    $scrollRight.hide();
+                }
+            }
         });
     };
 })( jQuery );
