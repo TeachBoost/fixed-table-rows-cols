@@ -7,7 +7,6 @@
  */
 
 ( function ( $ ) {
-
     $.fn.fixedTableRowsCols = function ( options ) {
         var config = {
             height: 500,
@@ -165,7 +164,6 @@
             $fixedTableWrapper.scroll( function () {
                 if ( config.fixedCols > 0 ) {
                     // animate() is faster than css()
-                    // $fixedCols.css( 'top', ( $( this ).scrollTop() * -1 ) );
                     $fixedCols.animate({ top: $( this ).scrollTop() * -1 }, 0 );
                 }
 
@@ -192,12 +190,14 @@
 
                 $scrollRight.on( 'click', function () {
                     $fixedTableWrapper.animate({
-                        scrollLeft: Math.min( $this.width() - $fixedTableWrapper.width(), $fixedTableWrapper.scrollLeft() + scrollStep )
+                        scrollLeft: Math.min(
+                            $this.width() - $fixedTableWrapper.width(),
+                            $fixedTableWrapper.scrollLeft() + scrollStep )
                     }, 500, showScrollers() );
                 });
             }
 
-            function showScrollers() {
+            function showScrollers () {
                 // If not scrolled all the way left, show the left scroller
                 if ( $fixedTableWrapper.scrollLeft() > 0 ) {
                     $scrollLeft.show();
