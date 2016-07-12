@@ -5,8 +5,7 @@
  * Forked from http://meetselva.github.io/
  * No support for colspan
  */
-
-( function ( $ ) {
+(function ( $, _) {
     $.fn.fixedTableRowsCols = function ( options ) {
         var config = {
             height: 500,
@@ -14,7 +13,7 @@
             fixedCols: 1,
             fixedTHead: true,
             addScrollers: false,
-            tableTmpl: function ( className ) {
+            tableTemplate: function ( className ) {
                 return '<table class="' + className + '" />';
             }
         };
@@ -23,50 +22,44 @@
 
         //  For each table found
         return this.each( function () {
-            var $this = $( this );
-            var $fixedTableContainer;
-            var $fixedTableRelContainer;
-            var $fixedTableWrapper;
+            var $table = $( this );
             var $fixedRows;
             var $fixedCols;
-            var $fixedRowCols;
             var $scrollLeft;
             var $scrollRight;
-            var thHeight = $this.find( 'tr:first-child th:first-child' ).outerHeight();
-            var tdHeight = $this.find( 'tr:first-child td:first-child' ).outerHeight();
-            var tableWidth = $this.outerWidth();
+            var $fixedRowCols;
+            var scrollStep = 0;
             var tableHeight = 0;
             var fixedColWidth = 0;
-            var scrollStep = 0;
+            var $fixedTableScroller;
+            var hasVerticalScrollBar;
+            var $fixedTableContainer;
+            var hasHorizontalScrollbar;
+            var $fixedTableRelContainer;
+            var tableWidth = $table.outerWidth();
+            var scrollBarWidth = getScrollBarWidth();
+            var thHeight = $table.find( 'tr:first-child th:first-child' ).outerHeight();
+            var tdHeight = $table.find( 'tr:first-child td:first-child' ).outerHeight();
 
             // Set the width and height of each td & th based on the default
             // rendering of the table. Agnostic to how table and cell widths
             // are defined before this plugin is invoked, and does not take
             // in any values to set whose widths.
-
-            $this.find( 'th' ).css({
+            $table.find( 'th' ).css({
                 height: thHeight,
                 width: function ( index, style ) {
                     return style;
                 }
             });
 
-            // $this.find( 'td' ).css({
-            //     height: tdHeight,
-            //     width: function ( index, style ) {
-            //         return style;
-            //     }
-            // });
-
-            $this.width( tableWidth );
-
-            // Calculate the fixedColWidth
+            // Hard code the width of the table
+            $table.width( tableWidth );
+            // Calculate the width of the fixed column
             fixedColWidth = _.reduce(
                 _.map(
-                    $this.find(
+                    $table.find(
                         'tr:first-child th:nth-child(-n + ' +
-                        config.fixedCols +
-                        ')' ),
+                        config.fixedCols + ')' ),
                     function ( el ) {
                         return $( el ).outerWidth();
                     }),
@@ -75,105 +68,121 @@
                 });
 
             // Wrap table in a container to define the scrollable area
-            $this.wrap( '<div class="ft-container" />' );
-
-            $fixedTableContainer = $this.parent().css({
+            $table.wrap( '<div class="ft-container" />' );
+            $fixedTableContainer = $table.parent();
+            $fixedTableContainer.css({
                 width: config.width,
                 height: config.height
             });
 
-            // Add relative container
-            $this.wrap( '<div class="ft-rel-container" />' );
-            $fixedTableRelContainer = $this.parent();
+            // Add relative container to wrap the scroller
+            $table.wrap( '<div class="ft-rel-container" />' );
+            $fixedTableRelContainer = $table.parent();
 
             // Add wrapper to base table which will have the scrollbars
-            $this.wrap( '<div class="ft-scroller" />' );
-            $fixedTableWrapper = $this.parent().css( 'width', $fixedTableContainer.width() );
+            $table.wrap( '<div class="ft-scroller" />' );
+            $fixedTableScroller = $table.parent();
+            $fixedTableScroller.css( 'width', $fixedTableContainer.width() );
 
-            // Create a new table for each fixed portions
+            // If the scroller has a vertical scrollbar, then resize the table
+            // to be thinner by the width of the scrollbar.
+            hasVerticalScrollBar = $fixedTableScroller.get( 0 ).scrollHeight
+                > $fixedTableScroller.height();
 
+            if ( hasVerticalScrollBar ) {
+                tableWidth = tableWidth - scrollBarWidth;
+                $table.width( tableWidth );
+                $table.find( 'thead' ).width( tableWidth );
+            }
+
+            // If the scroller has a horizontal scrollbar, then resize the
+            // scrolling pane to be larger by the size of the scrollbar.
+            hasHorizontalScrollbar = $fixedTableScroller.get( 0 ).scrollWidth
+                > ( $fixedTableScroller.width()
+                    - ( hasVerticalScrollBar ? scrollBarWidth : 0 ) );
+
+            if ( hasHorizontalScrollbar ) {
+                $fixedTableScroller.height( config.height + scrollBarWidth );
+            }
+
+            // If we're fixing the THEAD, then clone the header and prepend
+            // it to the top of the relative container. This sits on top of
+            // the scrolling content and the .ft-rwrapper class makes it
+            // absolutely positioned.
             if ( config.fixedTHead ) {
                 // Fixed Rows
-                $fixedRows = $( config.tableTmpl( 'ft-r' ) )
-                    .append( $this.find( 'thead' ).clone() );
-
+                $fixedRows = $( config.tableTemplate( 'ft-r table' ) )
+                    .append( $table.find( 'thead' ).clone() );
                 $fixedTableRelContainer.prepend( $fixedRows );
-
                 $fixedRows.wrap( $( '<div class="ft-rwrapper" />' ) );
                 $fixedRows.width( tableWidth );
             }
 
+            // Fix any columns
             if ( config.fixedCols > 0 ) {
                 // Upper Left corner, cells that lie in both the fixed row and cols
-                $fixedRowCols = $( config.tableTmpl( 'ft-rc' ) )
-                        .append( $this.find( 'thead' ).clone() );
-
+                $fixedRowCols = $( config.tableTemplate( 'ft-rc table' ) )
+                    .append( $table.find( 'thead' ).clone() );
+                // Remove all THs but the first one
                 $fixedRowCols
                     .find( 'th:nth-child( n + ' + ( config.fixedCols + 1 ) + ' )' )
                     .remove();
-
-                // Add fixed row+col section
-                $fixedTableRelContainer
-                    .prepend( $fixedRowCols );
-
-                // Fixed Columns
-                // Clone the fixed row column and append tbody for the remaining rows
+                // Add fixed row + col section
+                $fixedTableRelContainer.prepend( $fixedRowCols );
+                // Clone the fixed row column and append TBODY for the remaining rows
                 $fixedCols = $fixedRowCols.clone();
-                $fixedCols[ 0 ].className = 'ft-c';
-                $fixedCols.append( $this.find( 'tbody' ).clone() );
+                $fixedCols[ 0 ].className = 'table ft-c';
+                $fixedCols.append( $table.find( 'tbody' ).clone() );
                 $fixedCols
                     .find( 'td:nth-child( n + ' + ( config.fixedCols + 1 ) + ' )' )
                     .remove();
-
-                // Append the Fixed Columns
+                // Append the fixed columns. This class makes them absolutely
+                // positioned.
                 $fixedRowCols.after( $fixedCols );
                 $fixedCols.wrap( $( '<div class="ft-cwrapper" />' ) );
-
                 // Set the width of the Fixed Columns and Fixed Row-Columns
                 $fixedCols.add( $fixedRowCols ).width( fixedColWidth );
-                $fixedCols.height( $this.outerHeight( true ) );
-
-                // Set the width && height of the wrapper
-                $fixedCols
-                    .parent()
+                $fixedCols.height( $table.outerHeight( true ) );
+                // Set the width and height of the wrapper
+                $fixedCols.parent()
                     .css({
                         height: $fixedTableContainer.height()
                     })
                     .width( $fixedRowCols.outerWidth( true ) + 1 );
 
+                // Add scroll indicators
                 if ( config.addScrollers ) {
-                    // Add scroll indicators
                     $scrollLeft = $( '<div class="ft-scroll-left" />' );
                     $scrollLeft.append( '<i class="fa fa-chevron-left" />' );
                     $scrollRight = $( '<div class="ft-scroll-right" />' );
                     $scrollRight.append( '<i class="fa fa-chevron-right" />' );
-                    $scrollLeft.css( { left: $fixedRowCols.outerWidth( true ) } );
+                    $scrollLeft.css({ left: $fixedRowCols.outerWidth( true ) });
                     $fixedTableRelContainer.append( $scrollLeft );
                     $fixedTableRelContainer.append( $scrollRight );
                 }
             }
 
-            $fixedRows
-                .parent()
+            $fixedRows.parent()
                 .css({
-                    width: $fixedTableWrapper.width()
+                    width: $fixedTableScroller.width()
                 });
 
-            // Events
-            // Scrolling
-            $fixedTableWrapper.scroll( function () {
+            // On table scroll we need to
+            $fixedTableScroller.scroll( function () {
+                var $this = $( this );
+
                 if ( config.fixedCols > 0 ) {
                     // animate() is faster than css()
-                    $fixedCols.animate({ top: $( this ).scrollTop() * -1 }, 0 );
+                    $fixedCols.animate({ top: $this.scrollTop() * -1 }, 0 );
                 }
 
-                $fixedRows.animate({ left: $( this ).scrollLeft() * -1 }, 0 );
+                $fixedRows.animate({ left: $this.scrollLeft() * -1 }, 0 );
             });
 
             if ( config.addScrollers && config.fixedCols > 0 ) {
-                scrollStep = $fixedTableWrapper.width() - fixedColWidth * 0.5;
+                scrollStep = $fixedTableScroller.width() - fixedColWidth * 0.5;
                 // $fixedTableRowsCols.add( $scrollLeft ).add( $scrollRight ).on( 'mouseover', function () {
-                $this.add( $scrollLeft ).add( $scrollRight ).on( 'mouseover', function () {
+                $table.add( $scrollLeft ).add( $scrollRight ).on( 'mouseover', function () {
                     showScrollers();
                 });
 
@@ -183,23 +192,23 @@
                 });
 
                 $scrollLeft.on( 'click', function () {
-                    $fixedTableWrapper.animate({
-                        scrollLeft: Math.max( 0, $fixedTableWrapper.scrollLeft() - scrollStep )
+                    $fixedTableScroller.animate({
+                        scrollLeft: Math.max( 0, $fixedTableScroller.scrollLeft() - scrollStep )
                     }, 500, showScrollers() );
                 });
 
                 $scrollRight.on( 'click', function () {
-                    $fixedTableWrapper.animate({
+                    $fixedTableScroller.animate({
                         scrollLeft: Math.min(
-                            $this.width() - $fixedTableWrapper.width(),
-                            $fixedTableWrapper.scrollLeft() + scrollStep )
+                            $table.width() - $fixedTableScroller.width(),
+                            $fixedTableScroller.scrollLeft() + scrollStep )
                     }, 500, showScrollers() );
                 });
             }
 
             function showScrollers () {
                 // If not scrolled all the way left, show the left scroller
-                if ( $fixedTableWrapper.scrollLeft() > 0 ) {
+                if ( $fixedTableScroller.scrollLeft() > 0 ) {
                     $scrollLeft.show();
                 }
                 else {
@@ -207,13 +216,44 @@
                 }
 
                 // If not scrolled all the way right, show the right scroller
-                if ( $fixedTableWrapper.scrollLeft() + $fixedTableWrapper.width() < $this.width() ) {
+                if ( $fixedTableScroller.scrollLeft() + $fixedTableScroller.width() < $table.width() ) {
                     $scrollRight.show();
                 }
                 else {
                     $scrollRight.hide();
                 }
             }
+
+            function getScrollBarWidth () {
+                var w1;
+                var w2;
+                var inner = document.createElement( 'p' );
+                var outer = document.createElement( 'div' );
+
+                inner.style.width = "100%";
+                inner.style.height = "200px";
+                outer.style.position = "absolute";
+                outer.style.top = "0px";
+                outer.style.left = "0px";
+                outer.style.width = "200px";
+                outer.style.height = "150px";
+                outer.style.overflow = "hidden";
+                outer.style.visibility = "hidden";
+                outer.appendChild( inner );
+
+                document.body.appendChild( outer );
+                w1 = inner.offsetWidth;
+                outer.style.overflow = 'scroll';
+                w2 = inner.offsetWidth;
+
+                if ( w1 == w2 ) {
+                    w2 = outer.clientWidth;
+                }
+
+                document.body.removeChild( outer );
+
+                return (w1 - w2);
+            };
         });
     };
-})( jQuery );
+})( jQuery, _ );
