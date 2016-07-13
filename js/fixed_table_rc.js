@@ -12,7 +12,8 @@
             width: 2000,
             fixedCols: 1,
             fixedTHead: true,
-            addScrollers: false,
+            scrollLeftSelector: null,
+            scrollRightSelector: null,
             tableTemplate: function ( className ) {
                 return '<table class="' + className + '" />';
             }
@@ -25,8 +26,6 @@
             var $table = $( this );
             var $fixedRows;
             var $fixedCols;
-            var $scrollLeft;
-            var $scrollRight;
             var $fixedRowCols;
             var scrollStep = 0;
             var tableHeight = 0;
@@ -90,16 +89,17 @@
                 > $fixedTableScroller.height();
 
             if ( hasVerticalScrollBar ) {
-                tableWidth = tableWidth - scrollBarWidth;
-                $table.width( tableWidth );
-                $table.find( 'thead' ).width( tableWidth );
+                $table.width( tableWidth - scrollBarWidth );
+                $table.find( 'thead' ).width( tableWidth - scrollBarWidth );
+                $fixedTableScroller.css({
+                    'padding-right': scrollBarWidth
+                });
             }
 
             // If the scroller has a horizontal scrollbar, then resize the
             // scrolling pane to be larger by the size of the scrollbar.
             hasHorizontalScrollbar = $fixedTableScroller.get( 0 ).scrollWidth
-                > ( $fixedTableScroller.width()
-                    - ( hasVerticalScrollBar ? scrollBarWidth : 0 ) );
+                > $fixedTableScroller.width();
 
             if ( hasHorizontalScrollbar ) {
                 $fixedTableScroller.height( config.height + scrollBarWidth );
@@ -110,7 +110,6 @@
             // the scrolling content and the .ft-rwrapper class makes it
             // absolutely positioned.
             if ( config.fixedTHead ) {
-                // Fixed Rows
                 $fixedRows = $( config.tableTemplate( 'ft-r table' ) )
                     .append( $table.find( 'thead' ).clone() );
                 $fixedTableRelContainer.prepend( $fixedRows );
@@ -149,17 +148,6 @@
                         height: $fixedTableContainer.height()
                     })
                     .width( $fixedRowCols.outerWidth( true ) + 1 );
-
-                // Add scroll indicators
-                if ( config.addScrollers ) {
-                    $scrollLeft = $( '<div class="ft-scroll-left" />' );
-                    $scrollLeft.append( '<i class="fa fa-chevron-left" />' );
-                    $scrollRight = $( '<div class="ft-scroll-right" />' );
-                    $scrollRight.append( '<i class="fa fa-chevron-right" />' );
-                    $scrollLeft.css({ left: $fixedRowCols.outerWidth( true ) });
-                    $fixedTableRelContainer.append( $scrollLeft );
-                    $fixedTableRelContainer.append( $scrollRight );
-                }
             }
 
             $fixedRows.parent()
@@ -167,7 +155,7 @@
                     width: $fixedTableScroller.width()
                 });
 
-            // On table scroll we need to
+            // On table scroll we need to scroll the fixed rows
             $fixedTableScroller.scroll( function () {
                 var $this = $( this );
 
@@ -179,49 +167,29 @@
                 $fixedRows.animate({ left: $this.scrollLeft() * -1 }, 0 );
             });
 
-            if ( config.addScrollers && config.fixedCols > 0 ) {
+            if ( config.fixedCols > 0
+                && config.scrollLeftElement
+                && config.scrollRightElement
+                && config.scrollLeftElement.length > 0
+                && config.scrollRightElement.length > 0 )
+            {
                 scrollStep = $fixedTableScroller.width() - fixedColWidth * 0.5;
-                // $fixedTableRowsCols.add( $scrollLeft ).add( $scrollRight ).on( 'mouseover', function () {
-                $table.add( $scrollLeft ).add( $scrollRight ).on( 'mouseover', function () {
-                    showScrollers();
-                });
-
-                $fixedCols.add( $fixedRows ).on( 'mouseover', function () {
-                    $scrollLeft.fadeOut( 'fast' );
-                    $scrollRight.fadeOut( 'fast' );
-                });
-
-                $scrollLeft.on( 'click', function () {
+                
+                // Scroll left event
+                config.scrollLeftElement.on( 'click', function () {
                     $fixedTableScroller.animate({
                         scrollLeft: Math.max( 0, $fixedTableScroller.scrollLeft() - scrollStep )
-                    }, 500, showScrollers() );
+                    }, 500 );
                 });
 
-                $scrollRight.on( 'click', function () {
+                // Scroll right event
+                config.scrollRightElement.on( 'click', function () {
                     $fixedTableScroller.animate({
                         scrollLeft: Math.min(
                             $table.width() - $fixedTableScroller.width(),
                             $fixedTableScroller.scrollLeft() + scrollStep )
-                    }, 500, showScrollers() );
+                    }, 500 );
                 });
-            }
-
-            function showScrollers () {
-                // If not scrolled all the way left, show the left scroller
-                if ( $fixedTableScroller.scrollLeft() > 0 ) {
-                    $scrollLeft.show();
-                }
-                else {
-                    $scrollLeft.hide();
-                }
-
-                // If not scrolled all the way right, show the right scroller
-                if ( $fixedTableScroller.scrollLeft() + $fixedTableScroller.width() < $table.width() ) {
-                    $scrollRight.show();
-                }
-                else {
-                    $scrollRight.hide();
-                }
             }
 
             function getScrollBarWidth () {
