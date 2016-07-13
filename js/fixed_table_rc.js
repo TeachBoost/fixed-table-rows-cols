@@ -12,6 +12,7 @@
             width: 2000,
             fixedCols: 1,
             fixedTHead: true,
+            scrollStepPad: 15,
             scrollLeftSelector: null,
             scrollRightSelector: null,
             tableTemplate: function ( className ) {
@@ -173,8 +174,11 @@
                 && config.scrollLeftElement.length > 0
                 && config.scrollRightElement.length > 0 )
             {
-                scrollStep = $fixedTableScroller.width() - fixedColWidth * 0.5;
-                
+                scrollStep = $fixedTableScroller.width()
+                    - fixedColWidth
+                    - config.scrollStepPad
+                    - ( hasVerticalScrollBar ? 15 : 0 );
+console.log( scrollStep );
                 // Scroll left event
                 config.scrollLeftElement.on( 'click', function () {
                     $fixedTableScroller.animate({
