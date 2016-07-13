@@ -179,7 +179,7 @@
                 config.scrollLeftElement.on( 'click', function () {
                     $fixedTableScroller.animate({
                         scrollLeft: Math.max( 0, $fixedTableScroller.scrollLeft() - scrollStep )
-                    }, 500 );
+                    }, 200 );
                 });
 
                 // Scroll right event
@@ -188,7 +188,7 @@
                         scrollLeft: Math.min(
                             $table.width() - $fixedTableScroller.width(),
                             $fixedTableScroller.scrollLeft() + scrollStep )
-                    }, 500 );
+                    }, 200 );
                 });
             }
 
