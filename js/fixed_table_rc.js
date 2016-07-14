@@ -15,10 +15,43 @@
             scrollStepPad: 15,
             scrollLeftSelector: null,
             scrollRightSelector: null,
-            tableTemplate: function ( className ) {
-                return '<table class="' + className + '" />';
-            }
+            disabledClass: 'ft-disabled'
         };
+
+        function getScrollBarWidth () {
+            var w1;
+            var w2;
+            var inner = document.createElement( 'p' );
+            var outer = document.createElement( 'div' );
+
+            inner.style.width = "100%";
+            inner.style.height = "200px";
+            outer.style.position = "absolute";
+            outer.style.top = "0px";
+            outer.style.left = "0px";
+            outer.style.width = "200px";
+            outer.style.height = "150px";
+            outer.style.overflow = "hidden";
+            outer.style.visibility = "hidden";
+            outer.appendChild( inner );
+
+            document.body.appendChild( outer );
+            w1 = inner.offsetWidth;
+            outer.style.overflow = 'scroll';
+            w2 = inner.offsetWidth;
+
+            if ( w1 == w2 ) {
+                w2 = outer.clientWidth;
+            }
+
+            document.body.removeChild( outer );
+
+            return (w1 - w2);
+        };
+
+        function template ( className ) {
+            return '<table class="' + className + '" />';
+        }
 
         $.extend( config, options );
 
@@ -54,19 +87,6 @@
 
             // Hard code the width of the table
             $table.width( tableWidth );
-            // Calculate the width of the fixed column
-            fixedColWidth = _.reduce(
-                _.map(
-                    $table.find(
-                        'tr:first-child th:nth-child(-n + ' +
-                        config.fixedCols + ')' ),
-                    function ( el ) {
-                        return $( el ).outerWidth();
-                    }),
-                function ( memo, num ) {
-                    return memo + num;
-                });
-
             // Wrap table in a container to define the scrollable area
             $table.wrap( '<div class="ft-container" />' );
             $fixedTableContainer = $table.parent();
@@ -103,7 +123,11 @@
                 > $fixedTableScroller.width();
 
             if ( hasHorizontalScrollbar ) {
+                $fixedTableContainer.addClass( 'with-horiz-scroll' );
                 $fixedTableScroller.height( config.height + scrollBarWidth );
+            }
+            else {
+                $fixedTableContainer.removeClass( 'with-horiz-scroll' );
             }
 
             // If we're fixing the THEAD, then clone the header and prepend
@@ -111,28 +135,43 @@
             // the scrolling content and the .ft-rwrapper class makes it
             // absolutely positioned.
             if ( config.fixedTHead ) {
-                $fixedRows = $( config.tableTemplate( 'ft-r table' ) )
+                $fixedRows = $( template( 'ft-r table' ) )
                     .append( $table.find( 'thead' ).clone() );
                 $fixedTableRelContainer.prepend( $fixedRows );
                 $fixedRows.wrap( $( '<div class="ft-rwrapper" />' ) );
-                $fixedRows.width( tableWidth );
+                $fixedRows.width(
+                    tableWidth - ( hasVerticalScrollBar ? scrollBarWidth : 0 ) );
             }
+
+            // Calculate the width of the fixed column
+            fixedColWidth = _.reduce(
+                _.map(
+                    $table.find(
+                        'tr:first-child th:nth-child(-n + '
+                            + config.fixedCols + ')' ),
+                    function ( el ) {
+                        return $( el ).outerWidth();
+                    }),
+                function ( memo, num ) {
+                    return memo + num;
+                });
 
             // Fix any columns
             if ( config.fixedCols > 0 ) {
                 // Upper Left corner, cells that lie in both the fixed row and cols
-                $fixedRowCols = $( config.tableTemplate( 'ft-rc table' ) )
-                    .append( $table.find( 'thead' ).clone() );
-                // Remove all THs but the first one
+                $fixedRowCols = $( template( 'ft-rc table' ) )
+                    .append( $table.find( 'thead' ).clone( true ) );
+                // Remove all THs but the fixed ones
                 $fixedRowCols
                     .find( 'th:nth-child( n + ' + ( config.fixedCols + 1 ) + ' )' )
                     .remove();
                 // Add fixed row + col section
                 $fixedTableRelContainer.prepend( $fixedRowCols );
                 // Clone the fixed row column and append TBODY for the remaining rows
-                $fixedCols = $fixedRowCols.clone();
+                $fixedCols = $fixedRowCols.clone( true );
                 $fixedCols[ 0 ].className = 'table ft-c';
                 $fixedCols.append( $table.find( 'tbody' ).clone() );
+                // Remove all columns but the fixed ones
                 $fixedCols
                     .find( 'td:nth-child( n + ' + ( config.fixedCols + 1 ) + ' )' )
                     .remove();
@@ -148,7 +187,7 @@
                     .css({
                         height: $fixedTableContainer.height()
                     })
-                    .width( $fixedRowCols.outerWidth( true ) + 1 );
+                    .width( $fixedRowCols.outerWidth( true ) );
             }
 
             $fixedRows.parent()
@@ -178,7 +217,7 @@
                     - fixedColWidth
                     - config.scrollStepPad
                     - ( hasVerticalScrollBar ? 15 : 0 );
-console.log( scrollStep );
+
                 // Scroll left event
                 config.scrollLeftElement.on( 'click', function () {
                     $fixedTableScroller.animate({
@@ -194,38 +233,16 @@ console.log( scrollStep );
                             $fixedTableScroller.scrollLeft() + scrollStep )
                     }, 200 );
                 });
-            }
 
-            function getScrollBarWidth () {
-                var w1;
-                var w2;
-                var inner = document.createElement( 'p' );
-                var outer = document.createElement( 'div' );
-
-                inner.style.width = "100%";
-                inner.style.height = "200px";
-                outer.style.position = "absolute";
-                outer.style.top = "0px";
-                outer.style.left = "0px";
-                outer.style.width = "200px";
-                outer.style.height = "150px";
-                outer.style.overflow = "hidden";
-                outer.style.visibility = "hidden";
-                outer.appendChild( inner );
-
-                document.body.appendChild( outer );
-                w1 = inner.offsetWidth;
-                outer.style.overflow = 'scroll';
-                w2 = inner.offsetWidth;
-
-                if ( w1 == w2 ) {
-                    w2 = outer.clientWidth;
+                if ( ! hasHorizontalScrollbar ) {
+                    config.scrollLeftElement.addClass( config.disabledClass );
+                    config.scrollRightElement.addClass( config.disabledClass );
                 }
-
-                document.body.removeChild( outer );
-
-                return (w1 - w2);
-            };
+                else {
+                    config.scrollLeftElement.removeClass( config.disabledClass );
+                    config.scrollRightElement.removeClass( config.disabledClass );
+                }
+            }
         });
     };
 })( jQuery, _ );
