@@ -1,0 +1,16 @@
+{
+  "name": "fixed-table-rows-cols",
+  "preferGlobal": true,
+  "version": "0.0.1",
+  "author": "meetselva",
+  "description": "Converts an HTML table to a scrollable table with a fixed header and columns",
+  "license": "MIT",
+  "contributors": "Mike Gioia",
+  "keywords": [],
+  "bugs": "https://github.com/TeachBoost/fixed-table-rows-cols/issues",
+  "dependencies": {},
+  "repository": {
+     "type": "git",
+     "url": "https://github.com/TeachBoost/fixed-table-rows-cols"
+  }
+}
